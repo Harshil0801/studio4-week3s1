@@ -1,37 +1,90 @@
-name: Deploy to Apache Server via SCP
-
+name: Deploy React App to Apache Server
+ 
 on:
+
   push:
+
     branches:
-      - main  # Trigger deployment when pushing to the main branch
 
+      - main  # Change this if using a different branch
+ 
 jobs:
+
   deploy:
+
     runs-on: ubuntu-latest
-
+ 
     steps:
-    - name: Checkout the code
-      uses: actions/checkout@v2  # Checkout the repository
 
-    - name: Install sshpass
-      run: sudo apt-get install -y sshpass  # Install sshpass for password-based SSH/SCP authentication
+      - name: Checkout Repository
 
-    - name: Ensure the target directory exists on the server
-      run: |
-        # Add verbosity to debug the SSH connection
-        sshpass -p ${{ secrets.SERVER_PASSWORD }} ssh -v -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "mkdir -p /var/www/html/your-project"
+        uses: actions/checkout@v4
+ 
+      - name: Install SSH & SSHPass
 
-    - name: Copy files to Apache server using SCP
-      run: |
-        # Add verbosity to debug the SCP connection
-        sshpass -p ${{ secrets.SERVER_PASSWORD }} scp -v -r ./path/to/your/project/* ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/var/www/html/your-project/
+        run: sudo apt-get install -y sshpass
+ 
+      - name: Debug SSH Variables
 
-    - name: Set permissions on Apache server
-      run: |
-        # Add verbosity to debug the SSH command for setting permissions
-        sshpass -p ${{ secrets.SERVER_PASSWORD }} ssh -v -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "sudo chown -R www-data:www-data /var/www/html/your-project"
-    
-    - name: Restart Apache server
-      run: |
-        # Add verbosity to debug the SSH command for restarting Apache
-        sshpass -p ${{ secrets.SERVER_PASSWORD }} ssh -v -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "sudo systemctl restart apache2"
+        run: |
+
+          echo "Server Host: ${{ secrets.SERVER_HOST }}"
+
+          echo "Server Username: ${{ secrets.SERVER_USERNAME }}"
+ 
+      - name: Install Node.js Dependencies & Build React App
+
+        run: |
+
+          export CI=false  # Prevent ESLint warnings from failing the build
+
+          npm install
+
+          npm run build
+ 
+      - name: Transfer Files to Apache Server
+
+        env:
+
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+
+          SERVER_USERNAME: ${{ secrets.SERVER_USERNAME }}
+
+          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+
+        run: |
+
+          sshpass -p "$SERVER_PASSWORD" ssh -tt -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST << 'EOF'
+
+            echo "✅ Successfully connected to $SERVER_HOST"
+ 
+            # Clear old files and upload new ones
+
+            sudo rm -rf /var/www/html/*
+
+            exit
+
+          EOF
+
+          sshpass -p "$SERVER_PASSWORD" scp -r build/* $SERVER_USERNAME@$SERVER_HOST:/var/www/html/
+ 
+     # - name: Restart Apache Server
+
+       # env:
+
+       #   SERVER_HOST: ${{ secrets.SERVER_HOST }}
+
+         # SERVER_USERNAME: ${{ secrets.SERVER_USERNAME }}
+
+        #  SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+
+       # run: |
+
+         # sshpass -p "$SERVER_PASSWORD" ssh -tt -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST << 'EOF'
+
+          #  echo "✅ Restarting Apache..."
+
+          #  sudo systemctl restart apache2
+
+       #   EOF
+ 
