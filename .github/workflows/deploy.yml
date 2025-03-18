@@ -18,20 +18,24 @@ jobs:
 
     - name: Ensure the target directory exists on the server
       run: |
-        # Ensure that the target directory exists on the server
-        sshpass -p ${{ secrets.SERVER_PASSWORD }} ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "mkdir -p /var/www/html/your-project"
-
+        # Print debug info to help troubleshoot SSH connection
+        echo "Checking SSH connection..."
+        sshpass -p ${{ secrets.SERVER_PASSWORD }} ssh -o StrictHostKeyChecking=no -v ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "mkdir -p /var/www/html/your-project"
+    
     - name: Copy files to Apache server using SCP
       run: |
-        # Copy project files to the Apache server using SCP
-        sshpass -p ${{ secrets.SERVER_PASSWORD }} scp -r ./path/to/your/project/* ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/var/www/html/your-project/
+        # Print debug info and copy files
+        echo "Copying files to the server..."
+        sshpass -p ${{ secrets.SERVER_PASSWORD }} scp -v -r ./path/to/your/project/* ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/var/www/html/your-project/
 
     - name: Set permissions on Apache server
       run: |
-        # Set file ownership to Apache user (www-data)
+        # Print debug info and set file permissions
+        echo "Setting permissions..."
         sshpass -p ${{ secrets.SERVER_PASSWORD }} ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "sudo chown -R www-data:www-data /var/www/html/your-project"
     
     - name: Restart Apache server
       run: |
-        # Restart Apache to apply the changes
+        # Print debug info and restart Apache
+        echo "Restarting Apache..."
         sshpass -p ${{ secrets.SERVER_PASSWORD }} ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "sudo systemctl restart apache2"
