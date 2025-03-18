@@ -1,20 +1,40 @@
-name: Say Hello
+name: Deploy to Apache Server
 
 on:
   push:
     branches:
-      - main
-  pull_request:
-    branches:
-      - main
+      - main  # Trigger deployment when pushing to the main branch
 
 jobs:
-  say-hello:
+  deploy:
     runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    env:
+      SERVER_HOST: ${{ secrets.SERVER_HOST }}  # Store the server host (IP or domain)
+      SERVER_USER: ${{ secrets.SERVER_USER }}  # Store the server username
+      SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}  # Store the server password
 
-      - name: Print Hello
-        run: echo "Hello, World!"
+    steps:
+    - name: Checkout the code
+      uses: actions/checkout@v2
+
+    - name: Set up SSH
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Copy files to Apache server using SCP
+      run: |
+        # Ensure the target directory exists on the server
+        sshpass -p ${{ env.SERVER_PASSWORD }} ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "mkdir -p /var/www/html/your-project"
+        
+        # Copy files using SCP to the Apache server
+        sshpass -p ${{ env.SERVER_PASSWORD }} scp -r ./path/to/your/project/* ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/var/www/html/your-project/
+
+    - name: Set permissions on Apache server
+      run: |
+        sshpass -p ${{ env.SERVER_PASSWORD }} ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "sudo chown -R www-data:www-data /var/www/html/your-project"
+    
+    - name: Restart Apache server
+      run: |
+        sshpass -p ${{ env.SERVER_PASSWORD }} ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "sudo systemctl restart apache2"
